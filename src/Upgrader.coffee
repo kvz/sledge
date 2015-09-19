@@ -21,11 +21,11 @@ class Upgrader
       @checkProposals.bind(this)
       @writeChangelog.bind(this)
       @upgradePackages.bind(this)
+      @displayInstructions.bind(this)
     ], (err, results) ->
       if err
         throw err
 
-      debug "Done. "
       process.exit 0
 
   storeProposals: (cb) ->
@@ -91,6 +91,8 @@ class Upgrader
   writeChangelog: (cb) ->
     debug "writeChangelog"
     str = ""
+    str += "Upgrade node dependencies"
+    str += "\n\n"
     for module, props of @changelog
       str += "## #{module} #{props.from} → #{props.to}" + "\n\n"
       for commit in props.commits
@@ -127,6 +129,19 @@ class Upgrader
         return cb new Error err
 
       cb null
+
+  displayInstructions: (cb) ->
+    console.log ""
+    console.log "npm install \\"
+    console.log "&& make test \\"
+    console.log "&& atom SLEDGE-CHANGES.md \\"
+    console.log "&& git add package.json \\"
+    console.log "&& cat SLEDGE-CHANGES.md | git commit -m -  \\"
+    console.log "&& git push \\"
+    console.log "&& make release-minor \\"
+    console.log "&& rm SLEDGE-CHANGES.md \\"
+    console.log "&& echo Done : )"
+    cb()
 
   _readPackageJson: (item, cb) ->
     { module, to, from } = item
