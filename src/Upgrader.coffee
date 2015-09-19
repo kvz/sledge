@@ -140,7 +140,7 @@ class Upgrader
     console.log "&& git push \\"
     console.log "&& make release-minor \\"
     console.log "&& rm SLEDGE-CHANGES.md \\"
-    console.log "&& echo Done : )"
+    console.log "&& echo 'Done : )'"
     cb()
 
   _readPackageJson: (item, cb) ->
