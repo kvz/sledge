@@ -1,10 +1,10 @@
-exec   = require("child_process").exec
-fs     = require "fs"
-util   = require "util"
-debug  = require("depurar")("sledge")
-async  = require "async"
-_      = require "underscore"
-Airbud = require "airbud"
+{exec, spawn} = require "child_process"
+fs            = require "fs"
+util          = require "util"
+debug         = require("depurar")("sledge")
+async         = require "async"
+_             = require "underscore"
+Airbud        = require "airbud"
 
 class Upgrader
   constructor: (mixin) ->
@@ -19,7 +19,8 @@ class Upgrader
     async.series [
       @storeProposals.bind(this)
       @checkProposals.bind(this)
-      @showChangelogs.bind(this)
+      @writeChangelog.bind(this)
+      @upgradePackages.bind(this)
     ], (err, results) ->
       if err
         throw err
@@ -27,23 +28,33 @@ class Upgrader
       debug "Done. "
       process.exit 0
 
-
   storeProposals: (cb) ->
-    cmd   = "#{__dirname}/../node_modules/.bin/npm-check-updates #{@targetDir}"
-    cmd  += "|grep 'can be updated' |tee #{@filePath}"
-    debug cmd
-    child = exec cmd, (err, stdout, stderr) ->
-      debug
-        cmd   :cmd
-        err   :err
-        stdout:stdout
-        stderr:stderr
-      if err
-        return cb err + ". " + stderr
+    debug "storeProposals"
+    cmd  = "#{__dirname}/../node_modules/.bin/ncu"
+    args = []
+    opts =
+      cwd  : @targetDir
+      stdio: [process.stdin, "pipe", process.stderr]
 
-      cb null, stdout
+    ncu = spawn cmd, args, opts
+
+    buf = ""
+    ncu.stdout.on "data", (data) ->
+      if "#{data}".indexOf("can be updated") > -1
+        buf += data
+      if "#{data}".indexOf("→") > -1
+        buf += data
+
+    ncu.on "close", (code) =>
+      if code != 0
+        return cb new Error err
+
+      debug "writing cache to '#{@filePath}'"
+      fs.writeFileSync @filePath, buf
+      cb null
 
   checkProposals: (cb) ->
+    debug "checkProposals"
     q = async.queue @_readPackageJson.bind(this), 4
 
     fs.readFile @filePath, "utf-8", (err, buf) =>
@@ -55,7 +66,9 @@ class Upgrader
         return cb new Error msg
 
       for line in buf.trim().split "\n"
-        m = line.match /"([a-z0-9_]+)" can be updated from (\S+) to (\S+)/
+        # pat = /"([a-z0-9_]+)" can be updated from (\S+) to (\S+)/
+        pat = /\s*([a-z0-9_\-]+)\s+(\S+)\s+→\s+(\S+)/
+        m = line.match pat
         if !m
           continue
 
@@ -70,37 +83,56 @@ class Upgrader
 
         debug util.inspect
           item: item
+
         q.push item
 
       q.drain = cb
 
-  showChangelogs: (cb) ->
+  writeChangelog: (cb) ->
+    debug "writeChangelog"
+    str = ""
     for module, props of @changelog
-      console.log " --> #{module} from #{props.from} to #{props.to}"
+      str += "## #{module} #{props.from} → #{props.to}" + "\n\n"
       for commit in props.commits
         for line, i in commit.message.trim().split "\n"
+          if !line.trim()
+            continue
+
           if i == 0
-            str = "   - "
+            str += "- "
           else
-            str = "     "
+            str += "  "
 
-          str += line
+          str += line + "\n"
 
-        console.log str
+      str += "\n"
 
-      console.log "\n"
+    file = "#{@targetDir}/SLEDGE-CHANGES.md"
+    debug "Writing #{file}"
+    fs.writeFileSync file, str
     cb()
+
+  upgradePackages: (cb) ->
+    debug "upgradePackages"
+    cmd  = "#{__dirname}/../node_modules/.bin/ncu"
+    args = ["--upgradeAll"]
+    opts =
+      cwd  : @targetDir
+      stdio: "inherit"
+
+    ncu = spawn cmd, args, opts
+
+    ncu.on "close", (code) ->
+      if code != 0
+        return cb new Error err
+
+      cb null
 
   _readPackageJson: (item, cb) ->
     { module, to, from } = item
 
     file = "#{@targetDir}/node_modules/#{module}/package.json"
     fs.readFile file, "utf-8", (err, buf) =>
-      debug
-        file :file
-        err  :err
-        buf  :buf
-
       if err
         debug err
         return cb err
@@ -143,7 +175,7 @@ class Upgrader
       headers     :
         "user-agent": @userAgent
 
-    debug opts.url
+    # debug opts.url
 
     Airbud.json opts, (err, data, meta) =>
       if err
