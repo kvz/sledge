@@ -9,7 +9,7 @@ COVERALLS  = node_modules/coveralls/bin/coveralls.js
 .PHONY: lint
 lint:
 	@[ ! -f coffeelint.json ] && $(COFFEELINT) --makeconfig > coffeelint.json || true
-	@$(COFFEELINT) --file ./coffeelint.json src
+	@$(COFFEELINT) --file ./coffeelint.json bin
 
 test-coverage:
 	# https://github.com/benbria/coffee-coverage/blob/master/docs/HOWTO-codeship-and-coveralls.md
