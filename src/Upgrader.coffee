@@ -135,7 +135,7 @@ class Upgrader
     console.log "npm install \\"
     console.log "&& make test \\"
     console.log "&& git add package.json \\"
-    console.log "&& git --edit --file SLEDGE-CHANGES.md \\"
+    console.log "&& git commit --edit --file SLEDGE-CHANGES.md \\"
     console.log "&& git push \\"
     console.log "&& make release-minor \\"
     console.log "&& rm SLEDGE-CHANGES.md \\"
