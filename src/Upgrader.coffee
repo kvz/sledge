@@ -151,7 +151,7 @@ class Upgrader
         debug err
         return cb err
 
-      q = async.queue @_fetchGitHubCompare.bind(this), 1
+      q = async.queue @_ratedFetchGitHubCompare.bind(this), 1
 
       pkg = JSON.parse buf
       if pkg.repository.type == "git"
@@ -174,6 +174,36 @@ class Upgrader
 
       q.drain = ->
         cb()
+
+  _ratedFetchGitHubCompare: (item, cb) ->
+    async.during @_fetchGitHubRateLimit.bind(this), (callback) ->
+      setTimeout callback, 1000
+    , (err) =>
+      if err
+        return cb err
+
+      @_fetchGitHubCompare item, cb
+
+  _fetchGitHubRateLimit: (cb) ->
+    opts =
+      retries     : 0
+      expectedKey : "resources"
+      url         : "https://api.github.com/rate_limit"
+      headers     :
+        "user-agent": @userAgent
+
+    Airbud.json opts, (err, data, meta) ->
+      debug
+        opts :opts
+        err  :err
+        data :data
+        meta :meta
+
+      if err
+        return err
+
+      debug "Remaining: #{data?.resources?.core?.remaining}"
+      cb null, data?.resources?.core?.remaining < 10
 
   _fetchGitHubCompare: (item, cb) ->
     { url, module, to, from } = item
