@@ -59,6 +59,7 @@ class Upgrader
 
     fs.readFile @filePath, "utf-8", (err, buf) =>
       if err
+        debug err
         return cb err
 
       if buf.trim().length == 0
@@ -68,7 +69,7 @@ class Upgrader
       for line in buf.trim().split "\n"
         # pat = /"([a-z0-9_]+)" can be updated from (\S+) to (\S+)/
         pat = /\s*([a-z0-9_\-]+)\s+(\S+)\s+→\s+(\S+)/
-        m = line.match pat
+        m   = line.match pat
         if !m
           continue
 
@@ -154,7 +155,7 @@ class Upgrader
       q = async.queue @_ratedFetchGitHubCompare.bind(this), 1
 
       pkg = JSON.parse buf
-      if pkg.repository.type == "git"
+      if pkg?.repository?.type == "git"
         repo = pkg.repository.url
         repo = repo.replace /^\w+:\/\//, ""
         repo = repo.replace /^(www\.)?github\.com/, ""
@@ -180,6 +181,7 @@ class Upgrader
       setTimeout callback, 1000
     , (err) =>
       if err
+        debug err
         return cb err
 
       @_fetchGitHubCompare item, cb
@@ -193,13 +195,8 @@ class Upgrader
         "user-agent": @userAgent
 
     Airbud.json opts, (err, data, meta) ->
-      debug
-        opts :opts
-        err  :err
-        data :data
-        meta :meta
-
       if err
+        debug err
         return err
 
       debug "Remaining: #{data?.resources?.core?.remaining}"
