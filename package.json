@@ -23,7 +23,7 @@
     "coffeelint": "^1.12.1",
     "depurar": "^0.2.0",
     "mocha": "^2.3.2",
-    "npm-check-updates": "^2.3.0",
+    "npm-check-updates": "^2.5.1",
     "underscore": "^1.8.3"
   }
 }
